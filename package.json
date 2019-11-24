@@ -1,0 +1,36 @@
+{
+  "name": "@jpwilliams/graphql-modular-loader",
+  "version": "0.0.0",
+  "description": "Load your GraphQL schemas, resolvers, and more from individual, organised files.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jpwilliams/graphql-modular-loader.git"
+  },
+  "keywords": [
+    "graphql",
+    "modules",
+    "modular",
+    "gql",
+    "load",
+    "loader",
+    "schemas",
+    "merge",
+    "stitch"
+  ],
+  "author": "Jack Williams <@jpwilliams>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jpwilliams/graphql-modular-loader/issues"
+  },
+  "homepage": "https://github.com/jpwilliams/graphql-modular-loader#readme",
+  "dependencies": {
+    "@jpwilliams/microload": "0.0.3",
+    "callsites": "^3.1.0",
+    "graphql": "^14.5.8",
+    "graphql-tag": "^2.10.1"
+  }
+}
