@@ -5,13 +5,6 @@ const { microload } = require('@jpwilliams/microload')
 const callsites = require('callsites')
 
 const commonResolvers = ['Query', 'Mutation', 'Subscription']
-const typesToAddMap = {}
-
-const startingState = {
-	typeDefs: [],
-	resolvers: {},
-	loaders: {}
-}
 
 function getLoaders (loaders, context) {
 	return Object.keys(loaders).reduce((map, key) => {
@@ -30,6 +23,8 @@ function loader (path) {
 	const types = microload(normalisedPath, {
 		extensions: ['js', 'graphql']
 	})
+
+	const typesToAddMap = {}
 
 	let {
 		typeDefs,
@@ -100,11 +95,20 @@ function loader (path) {
 		})
 	
 		return exp
-	}, startingState)
-	
-	let BaseTypeDefs = '\n'
+	}, {
+		typeDefs: [],
+		resolvers: {},
+		loaders: {}
+	})
+
 	const typesToAdd = Object.keys(typesToAddMap)
-	
+
+	if (!typesToAdd.length) {
+		throw new Error('No Query, Mutation or Subscription found. You must provide at least a valid Query schema.')
+	}
+
+	let BaseTypeDefs = '\n'
+
 	typesToAdd.forEach((type) => {
 		BaseTypeDefs += `type ${type}\n`
 	})
@@ -118,7 +122,7 @@ function loader (path) {
 	BaseTypeDefs += '}\n'
 	
 	typeDefs.push(gql(BaseTypeDefs))
-
+	
 	return {
 		typeDefs,
 		resolvers,
