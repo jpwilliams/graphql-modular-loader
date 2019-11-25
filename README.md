@@ -81,8 +81,6 @@ module.exports = ({ db }) => new DataLoader(async (bookNames) => {
 })
 ```
 
-, as well as how one would add the loaders to the `context` object using [apollographql/apollo-server](https://github.com/apollographql/apollo-server):
-
 With that format, using something like [apollographql/apollo-server](https://github.com/apollographql/apollo-server) we can add this (and any other loaders with the same format) to the `context` object for every resolver like so:
 
 ``` javascript
