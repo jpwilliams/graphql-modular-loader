@@ -9,7 +9,7 @@ npm install --save @jpwilliams/graphql-modular-loader
 ``` javascript
 // Load the './types' folder
 const { loader } = require('@jpwilliams/graphql-modular-loader')
-const { typeDefs, resolvers, loaders } = loader('./types')
+const { typeDefs, resolvers, getLoaders } = loader('./types')
 ```
 
 An example folder with your entire GraphQL set-up:
@@ -81,13 +81,13 @@ module.exports = ({ db }) => new DataLoader(async (bookNames) => {
 })
 ```
 
-With that format, using something like [apollographql/apollo-server](https://github.com/apollographql/apollo-server) we can add this (and any other loaders with the same format) to the `context` object for every resolver like so:
+When loading types, the `getLoaders` function is exported too. This takes a context object and loads all loaders using that context. Along with that and using something like [apollographql/apollo-server](https://github.com/apollographql/apollo-server), we can add this (and any other loaders with the same format) to the `context` object for every resolver like so:
 
 ``` javascript
 const { loader } = require('@jpwilliams/graphql-modular-loader')
 const { ApolloServer } = require('apollo-server')
 
-const { typeDefs, resolvers, loaders } = loader('./types')
+const { typeDefs, resolvers, getLoaders } = loader('./types')
 
 const server = new ApolloServer({
 	typeDefs,
@@ -101,13 +101,7 @@ const server = new ApolloServer({
 			dbConnection: '...'
 		}
 		
-		// Now, add the loaders, passing in anything they might need from
-		// the context above.
-		context.loaders = Object.keys(loaders).reduce((map, key) => {
-			map[key] = loaders[key](context)
-			
-			return map
-		}, {})
+		context.loaders = getLoaders(context)
 		
 		return context
 	}
