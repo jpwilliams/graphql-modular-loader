@@ -13,10 +13,15 @@ const startingState = {
 	loaders: {}
 }
 
-let cache = null
+function getLoaders (loaders, context) {
+	return Object.keys(loaders).reduce((map, key) => {
+		map[key] = loaders[key](context)
+
+		return map
+	}, {})
+}
 
 function loader (path) {
-	if (cache) return cache
 	if (!path || !path.length) throw new Error('A path to load must be specified.')
 
 	const cwd = dirname(callsites()[1].getFileName())
@@ -114,13 +119,12 @@ function loader (path) {
 	
 	typeDefs.push(gql(BaseTypeDefs))
 
-	cache = {
+	return {
 		typeDefs,
 		resolvers,
-		loaders
+		loaders,
+		getLoaders: getLoaders.bind(null, loaders)
 	}
-
-	return cache
 }
 
 module.exports = {
