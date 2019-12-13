@@ -3,12 +3,13 @@ const { resolve, dirname } = require('path')
 const gql = require('graphql-tag')
 const { microload } = require('@jpwilliams/microload')
 const callsites = require('callsites')
+const ora = require('ora')
 
 const commonResolvers = ['Query', 'Mutation', 'Subscription']
 
-function getLoaders (loaders, context) {
-	return Object.keys(loaders).reduce((map, key) => {
-		map[key] = loaders[key](context)
+function getNestedFns (fns, context) {
+	return Object.keys(fns).reduce((map, key) => {
+		map[key] = fns[key](context)
 
 		return map
 	}, {})
@@ -29,19 +30,27 @@ function loader (path) {
 	let {
 		typeDefs,
 		resolvers,
-		loaders
+		loaders,
+		middleware
 	} = Object.keys(types).reduce((exp, typeKey) => {
 		const {
 			schema,
 			resolvers,
-			loaders
+			loaders,
+			middleware
 		} = types[typeKey]
+
+		const spinner = ora(`Loading ${typeKey}...`).start()
 	
 		if (schema) {
+			spinner.text = `Loading ${typeKey} schema...`
+
 			exp.typeDefs.push(gql(schema))
 		}
 	
 		if (resolvers) {
+			spinner.text = `Loading ${typeKey} resolvers...`
+
 			// initialise
 			exp.resolvers[typeKey] = exp.resolvers[typeKey] || {}
 	
@@ -58,13 +67,20 @@ function loader (path) {
 		}
 	
 		if (loaders) {
+			spinner.text = `Loading ${typeKey} loaders...`
 			Object.assign(exp.loaders, loaders)
+		}
+
+		if (middleware) {
+			spinner.text = `Loading ${typeKey} middleware...`
+			Object.assign(exp.middleware, middleware)
 		}
 	
 		commonResolvers.forEach((item) => {
 			const target = types[typeKey][item]
 			if (!target) return
 	
+			spinner.text = `Loading ${typeKey} ${item}...`
 			const keys = Object.keys(target)
 	
 			keys.forEach((key) => {
@@ -74,6 +90,7 @@ function loader (path) {
 				typesToAddMap[item] = true
 	
 				if (target[key].schema) {
+					spinner.text = `Loading ${typeKey} ${item} ${key} schema...`
 					let targetSchema = target[key].schema.trim()
 	
 					if (!targetSchema.startsWith('extend')) {
@@ -84,6 +101,8 @@ function loader (path) {
 				}
 	
 				if (target[key].resolver) {
+					spinner.text = `Loading ${typeKey} ${item} ${key} resolver...`
+
 					Object.defineProperty(target[key].resolver, 'name', {
 						value: `${item}_${typeKey}_${key}`
 					})
@@ -93,12 +112,15 @@ function loader (path) {
 				}
 			})
 		})
+
+		spinner.succeed(`Loaded ${typeKey}`)
 	
 		return exp
 	}, {
 		typeDefs: [],
 		resolvers: {},
-		loaders: {}
+		loaders: {},
+		middleware: {}
 	})
 
 	const typesToAdd = Object.keys(typesToAddMap)
@@ -127,7 +149,8 @@ function loader (path) {
 		typeDefs,
 		resolvers,
 		loaders,
-		getLoaders: getLoaders.bind(null, loaders)
+		getLoaders: getNestedFns.bind(null, loaders),
+		getMiddleware: getNestedFns.bind(null, middleware)
 	}
 }
 
