@@ -1,6 +1,6 @@
 {
   "name": "@jpwilliams/graphql-modular-loader",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Load your GraphQL schemas, resolvers, and more from individual, organised files.",
   "main": "index.js",
   "scripts": {
