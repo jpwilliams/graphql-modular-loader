@@ -7,11 +7,15 @@ const ora = require('ora')
 
 const commonResolvers = ['Query', 'Mutation', 'Subscription']
 
-function getNestedFns (fns, context) {
-	return Object.keys(fns).reduce((map, key) => {
-		map[key] = fns[key](context)
+function getNestedFns (nestedBlocks, context) {
+	return Object.keys(nestedBlocks).reduce((block, mainKey) => {
+		block[mainKey] = Object.keys(nestedBlocks[mainKey]).reduce((map, key) => {
+			map[key] = nestedBlocks[mainKey][key](context)
 
-		return map
+			return map
+		}, {})
+
+		return block
 	}, {})
 }
 
@@ -148,9 +152,7 @@ function loader (path) {
 	return {
 		typeDefs,
 		resolvers,
-		loaders,
-		getLoaders: getNestedFns.bind(null, loaders),
-		getMiddleware: getNestedFns.bind(null, middleware)
+		getContextFns: getNestedFns.bind(null, { loaders, middleware })
 	}
 }
 
