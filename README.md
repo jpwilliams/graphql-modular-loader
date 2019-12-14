@@ -1,6 +1,6 @@
 # @jpwilliams/graphql-modular-loader
 
-Organise and load all of your GraphQL `types`, `resolvers`, and `loaders` with a single, easy function.
+Organise and load all of your GraphQL `types`, `resolvers`, `loaders`, and `middleware` with a single, easy function. This is an opinionated loader which supports only a specific export structure. Like anything opinionated, it's good for standardising, but it's not for everybody.
 
 ``` sh
 npm install --save @jpwilliams/graphql-modular-loader
@@ -9,7 +9,25 @@ npm install --save @jpwilliams/graphql-modular-loader
 ``` javascript
 // Load the './types' folder
 const { loader } = require('@jpwilliams/graphql-modular-loader')
-const { typeDefs, resolvers, getLoaders } = loader('./types')
+const { typeDefs, resolvers, getContextFns } = loader('./types')
+
+// Use typeDefs and resolvers for your GraphQL server
+const schema = makeExecutableSchema({
+	typeDefs,
+	resolvers
+})
+
+// getContextFns can be used to populate your context
+// object with loaders and middleware specified throughout
+// your types
+// ...
+const context = {
+	userId: 123,
+	database: MyDbConnection
+}
+
+Object.assign(context, getContextFns(context))
+// ...
 ```
 
 An example folder with your entire GraphQL set-up:
@@ -59,17 +77,19 @@ So how does the library expect you to lay out your schemas and resolvers? In the
     - `resolver.js` Exports a function that receives `(obj, args, context, info)` and handles a `bookAdded` subscription.
 - `loaders/` Contains any loaders related to this type. A specific export is recommended here so that loaders can be accessed from the `context` object of any resolver.
   - `bookByName.js` Adds a loader named `bookByName`. Export a function which receives a `context` object and passes back a [`DataLoader`](https://github.com/facebook/dataloader) instance. The use of a wrapping function here allows loaders to use `context`, but also means you can combat [`dataloader`'s caching trap](https://github.com/facebook/dataloader#caching-per-request) by returning a new loader on each run.
+- `middleware/` Contains any middleware related to this type. A specific export is recommended here so that middleware can be accessed from the `context` object of any resolver.
+  - `hasAccessToBook.js` Adds a piece of middleware named `hasAccessToBook`. Export a function which receives a `context` object and passes back a function to run when called.
   
-# Using loaders with `context`
+# Using loaders and middleware with `context`
   
-Regarding loaders, here's an example of what a loader called `bookByName.js` would ideally look like:
+Regarding loaders and middleware, here's an example of what a loader called `bookByName.js` would ideally look like:
 
 ``` javascript
 // bookByName.js
 const DataLoader = require('dataloader')
 
-module.exports = ({ db }) => new DataLoader(async (bookNames) => {
-	const books = await db.pseudoGetBooks(bookNames)
+module.exports = (context) => new DataLoader(async (bookNames) => {
+	const books = await context.db.pseudoGetBooks(bookNames)
 	
 	const bookMap = books.reduce((map, book) => {
 		map[book.name] = book
@@ -81,13 +101,24 @@ module.exports = ({ db }) => new DataLoader(async (bookNames) => {
 })
 ```
 
-When loading types, the `getLoaders` function is exported too. This takes a context object and loads all loaders using that context. Along with that and using something like [apollographql/apollo-server](https://github.com/apollographql/apollo-server), we can add this (and any other loaders with the same format) to the `context` object for every resolver like so:
+And here might be our middleware, `hasAccessToBook.js`:
+
+``` javascript
+// hasAccessToBook.js
+module.exports = (context) => async (bookId) => {
+	if (!context.user.isReader) {
+		throw new Error('Must be a reader to see that book!')
+	}
+}
+```
+
+When loading types, `getContextFns` function is exported too. This takes a context object and loads all loaders and middleware using that context. Along with that and using something like [apollographql/apollo-server](https://github.com/apollographql/apollo-server), we can add this (and any other loaders/middleware with the same format) to the `context` object for every resolver like so:
 
 ``` javascript
 const { loader } = require('@jpwilliams/graphql-modular-loader')
 const { ApolloServer } = require('apollo-server')
 
-const { typeDefs, resolvers, getLoaders } = loader('./types')
+const { typeDefs, resolvers, getContextFns } = loader('./types')
 
 const server = new ApolloServer({
 	typeDefs,
@@ -100,18 +131,20 @@ const server = new ApolloServer({
 			baz: true,
 			dbConnection: '...'
 		}
-		
-		context.loaders = getLoaders(context)
+
+		Object.assign(context, getContextFns(context))
 		
 		return context
 	}
 })
 ```
 
-Now, a resolver could access any loaders from our `context` object!
+Now, a resolver could access any loaders or middleware from our `context` object!
 
 ``` javascript
-module.exports = ({ bookName }, args, context, info) => {
+module.exports = async ({ bookName }, args, context, info) => {
+	await context.middleware.hasAccessToBook(bookName)
+
 	return context.loaders.bookByName(bookName)
 }
 ```
